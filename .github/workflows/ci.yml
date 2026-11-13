@@ -1,0 +1,46 @@
+name: ci
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ["8.2", "8.3"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_sqlite, mbstring
+      - run: composer install --no-interaction --prefer-dist
+      - name: Lint
+        run: find src public bin templates tests -name '*.php' -print0 | xargs -0 -n1 php -l > /dev/null
+      - run: vendor/bin/phpunit
+
+  mysql:
+    # Runs the real setup and demo data against MySQL, so the MySQL schema stays in step with SQLite.
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: trades
+          MYSQL_USER: trades
+          MYSQL_PASSWORD: trades
+          MYSQL_ROOT_PASSWORD: root
+        ports: ["3306:3306"]
+        options: --health-cmd="mysqladmin ping" --health-interval=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_mysql
+      - name: Setup with demo data
+        env:
+          DB_DSN: mysql:host=127.0.0.1;port=3306;dbname=trades;charset=utf8mb4
+          DB_USER: trades
+          DB_PASSWORD: trades
+        run: php bin/setup.php --email=ci@example.com --password=ci-password-123 --demo

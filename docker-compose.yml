@@ -1,0 +1,29 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: trades
+      MYSQL_USER: trades
+      MYSQL_PASSWORD: trades
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-utrades", "-ptrades"]
+      interval: 5s
+      retries: 20
+
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    environment:
+      DB_DSN: mysql:host=db;dbname=trades;charset=utf8mb4
+      DB_USER: trades
+      DB_PASSWORD: trades
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  mysql:
